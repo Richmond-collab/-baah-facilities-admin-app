@@ -3,10 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./api";
 
-export function useApiList<T>(key: string, path: string) {
+export function useApiList<T>(key: string, path: string, enabled = true) {
   return useQuery({
     queryKey: [key],
     queryFn: () => apiRequest<T[]>(path),
+    enabled,
   });
 }
 

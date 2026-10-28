@@ -92,7 +92,9 @@ export default function LoginPage() {
                 <input type="checkbox" className="accent-blue-500" defaultChecked />
                 Remember me
               </label>
-              <span className="text-slate-500">Contact your administrator for account help</span>
+              <a href="/forgot-password" className="text-blue-300 hover:text-blue-200">
+                Forgot password?
+              </a>
             </div>
 
             {error && (

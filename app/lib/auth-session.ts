@@ -8,6 +8,8 @@ export interface AuthUser {
 const tokenKey = "ops-token";
 const userKey = "ops-user";
 const changeEvent = "ops-auth-changed";
+let cachedUserValue: string | null | undefined;
+let cachedUserSnapshot: AuthUser | null | undefined;
 
 function isAuthUser(value: unknown): value is AuthUser {
   if (typeof value !== "object" || value === null) {
@@ -36,19 +38,27 @@ export function getUserSnapshot(): AuthUser | null | undefined {
     return undefined;
   }
   const value = window.localStorage.getItem(userKey);
+  if (value === cachedUserValue) {
+    return cachedUserSnapshot;
+  }
+  cachedUserValue = value;
   if (!value) {
-    return null;
+    cachedUserSnapshot = null;
+    return cachedUserSnapshot;
   }
   try {
     const user: unknown = JSON.parse(value);
     if (isAuthUser(user)) {
-      return user;
+      cachedUserSnapshot = user;
+      return cachedUserSnapshot;
     }
     console.error("Stored user session has an invalid shape");
-    return null;
+    cachedUserSnapshot = null;
+    return cachedUserSnapshot;
   } catch (error) {
     console.error("Stored user session is invalid", error);
-    return null;
+    cachedUserSnapshot = null;
+    return cachedUserSnapshot;
   }
 }
 

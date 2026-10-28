@@ -12,6 +12,18 @@ export interface Vehicle {
   mileage: number;
   status: string;
   branchId: string;
+  insuranceExpiry: string | null;
+  roadworthyExpiry: string | null;
+  nextServiceDate: string | null;
+  trips: VehicleTrip[];
+}
+
+export interface VehicleTrip {
+  id: string;
+  driverName: string;
+  purpose: string;
+  startAt: string;
+  startMileage: number;
 }
 
 export interface CreateVehicleInput {
@@ -21,6 +33,9 @@ export interface CreateVehicleInput {
   year?: number;
   mileage: number;
   branchId: string;
+  insuranceExpiry?: string;
+  roadworthyExpiry?: string;
+  nextServiceDate?: string;
 }
 
 export function useVehicles() {

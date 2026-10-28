@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { DashboardShell } from "../dashboard-shell";
 import { ApiError } from "../../lib/api";
 import { useApiList, useApiMutation } from "../../lib/use-api-data";
@@ -36,25 +36,45 @@ interface PackageAction {
 
 export default function PackagesPage() {
   const user = useSyncExternalStore(subscribeToAuthSession, getUserSnapshot, () => undefined);
+  const [destinationQuery, setDestinationQuery] = useState("");
+  const [destinationBranchId, setDestinationBranchId] = useState("");
+  const [destinationError, setDestinationError] = useState("");
   const packages = useApiList<PackageRecord>("packages", "packages");
   const branches = useApiList<Branch>("branches", "branches");
   const createPackage = useApiMutation<CreatePackage, PackageRecord>("packages", "packages", "POST");
   const dispatch = useApiMutation<PackageAction, PackageRecord>("packages", ({ id }) => `packages/${id}/dispatch`, "POST", () => ({}));
   const inTransit = useApiMutation<PackageAction, PackageRecord>("packages", ({ id }) => `packages/${id}/in-transit`, "POST", () => ({}));
   const receive = useApiMutation<PackageAction, PackageRecord>("packages", ({ id }) => `packages/${id}/receive`, "POST", () => ({}));
+  const destinationOptions = useMemo(
+    () => (branches.data ?? []).filter((branch) => branch.id !== user?.branchId),
+    [branches.data, user?.branchId],
+  );
+  const matchingBranches = destinationOptions.filter((branch) =>
+    `${branch.name} ${branch.city ?? ""}`.toLowerCase().includes(destinationQuery.trim().toLowerCase()),
+  );
+  const selectedDestination = destinationOptions.find((branch) => branch.id === destinationBranchId);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!destinationBranchId) {
+      setDestinationError("Search for and select a destination branch.");
+      return;
+    }
     const element = event.currentTarget;
     const form = new FormData(element);
+    setDestinationError("");
     createPackage.mutate(
       {
         trackingCode: String(form.get("trackingCode") ?? "").trim(),
         description: String(form.get("description") ?? "").trim(),
         recipientName: String(form.get("recipientName") ?? "").trim(),
-        toBranchId: String(form.get("toBranchId") ?? ""),
+        toBranchId: destinationBranchId,
       },
-      { onSuccess: () => element.reset() },
+      { onSuccess: () => {
+        element.reset();
+        setDestinationBranchId("");
+        setDestinationQuery("");
+      } },
     );
   }
 
@@ -71,13 +91,57 @@ export default function PackagesPage() {
         <input name="trackingCode" required placeholder="Tracking code" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
         <input name="description" required placeholder="Package description" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
         <input name="recipientName" required placeholder="Recipient" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
-        <select name="toBranchId" required defaultValue="" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white">
-          <option value="" disabled>Destination branch</option>
-          {(branches.data ?? []).filter((branch) => branch.id !== user?.branchId).map((branch) => (
-            <option key={branch.id} value={branch.id}>{branch.name}{branch.city ? ` · ${branch.city}` : ""}</option>
-          ))}
-        </select>
-        <button disabled={createPackage.isPending || branches.isPending} className="rounded-xl bg-cyan-500 px-3 py-2 font-medium text-slate-950 disabled:opacity-60">
+        <div className="relative min-w-0" role="group" aria-labelledby="destination-branch-label">
+          <label id="destination-branch-label" htmlFor="destination-branch-search" className="mb-1 block text-sm text-slate-300">Destination branch</label>
+          {selectedDestination ? (
+            <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-cyan-500/40 bg-slate-950 px-3 py-2 text-sm text-white">
+              <span className="min-w-0 truncate">{selectedDestination.name}{selectedDestination.city ? ` · ${selectedDestination.city}` : ""}</span>
+              <button type="button" onClick={() => { setDestinationBranchId(""); setDestinationQuery(""); }} className="shrink-0 rounded-lg px-2 py-1 text-cyan-300 hover:bg-slate-800">Change</button>
+            </div>
+          ) : (
+            <>
+              <input
+                id="destination-branch-search"
+                type="search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={destinationQuery.length > 0}
+                aria-controls="destination-branch-options"
+                autoComplete="off"
+                value={destinationQuery}
+                onChange={(event) => {
+                  setDestinationQuery(event.target.value);
+                  setDestinationError("");
+                }}
+                placeholder={branches.isPending ? "Loading branches..." : "Type to search branches"}
+                disabled={branches.isPending || branches.isError}
+                className="min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white disabled:opacity-60"
+              />
+              {destinationQuery && <ul id="destination-branch-options" role="listbox" aria-label="Destination branches" className="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-xl">
+                {matchingBranches.map((branch) => (
+                  <li key={branch.id} role="none">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      onClick={() => {
+                        setDestinationBranchId(branch.id);
+                        setDestinationQuery("");
+                        setDestinationError("");
+                      }}
+                      className="min-h-11 w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      {branch.name}{branch.city ? ` · ${branch.city}` : ""}
+                    </button>
+                  </li>
+                ))}
+                {matchingBranches.length === 0 && <li className="px-3 py-2 text-sm text-slate-400">No matching branches.</li>}
+              </ul>}
+            </>
+          )}
+          {destinationError && <p role="alert" className="mt-1 text-sm text-red-300">{destinationError}</p>}
+        </div>
+        <button type="submit" disabled={createPackage.isPending || branches.isPending || branches.isError} className="rounded-xl bg-cyan-500 px-3 py-2 font-medium text-slate-950 disabled:opacity-60">
           {createPackage.isPending ? "Saving..." : "Register package"}
         </button>
       </form>}

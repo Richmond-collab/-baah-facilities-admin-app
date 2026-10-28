@@ -72,4 +72,6 @@ export const navItems = [
   { name: "Packages", href: "/packages", roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { name: "Events", href: "/events", roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { name: "Check-in", href: "/check-in", roles: ["SECURITY", "ADMIN", "MANAGER"] },
+  { name: "Administration", href: "/admin", roles: ["SUPER_ADMIN", "ADMIN"] },
+  { name: "Change password", href: "/change-password", roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "SECURITY"] },
 ];
